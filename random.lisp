@@ -16,5 +16,5 @@
 (defstruct mock-rng state)
 (defmethod get-random ((rng mock-rng) min max)
   (let ((val (pop (mock-rng-state rng))))
-    (assert (and (<= min val) (>= max val)))
-    val))
+       (assert (and (<= min val) (>= max val)))
+       val))

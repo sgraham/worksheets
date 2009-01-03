@@ -66,13 +66,20 @@
   (rotate (deg-to-rad -45))
   (show-text "Some text"))
 
+; this is pixels/points (which are the same for us)
 (defparameter *letter-width* 612)
 (defparameter *letter-height* 792)
   
 (with-png-file ("example.png" :rgb24 *letter-width* *letter-height*)
   (draw-test))
 
-(setf *context* (create-pdf-context "example.pdf" *letter-width* *letter-height*))
-(draw-test)
-(destroy *context*)
 
+(defmacro with-pdf-file ((filename width height) &body body)
+  "Execute the body with context bound to a newly created pdf
+  file, and close it after executing body."
+  `(let* ((*context* (create-pdf-context ,filename ,width ,height)))
+         (unwind-protect (progn ,@body)
+                         (destroy *context*))))
+
+(with-pdf-file ("example.pdf" *letter-width* *letter-height*)
+  (draw-test))

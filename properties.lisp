@@ -1,9 +1,9 @@
 (in-package :learnr)
 
 (defstruct property
-  name value)
+  name)
 
-(defgeneric generate (property vals))
+(defgeneric generate (rng property))
 
 (defstruct (property-int (:include property))
   min
@@ -11,6 +11,6 @@
   minmin
   maxmax)
 
-(defmethod generate ((prop property-int) vals)
-  (let ((num (random-range (property-int-min prop) (property-int-max prop))))
-    (setf (gethash (property-name prop) vals) num)))
+(defmethod generate (rng (prop property-int))
+  (let ((num (get-random rng (property-int-min prop) (property-int-max prop))))
+       num))
