@@ -1,7 +1,5 @@
 (in-package :learnr)
 
-(declaim (optimize (debug 3) (safety 3) (speed 0) (space 0)))
-
 ;;;
 ;;; question data
 ;;;
@@ -16,9 +14,11 @@
   constraints
   display)
 
-(defparameter *question-db* nil)
+(defparameter *question-db* (make-hash-table :test #'equal))
 
-(defun add-question-description (qd) (push qd *question-db*))
+(defun add-question-description (qd)
+  (setf (gethash (concatenate 'string (qd-group qd) "/" (qd-title qd)) *question-db*)
+        qd))
 
 (add-question-description
   (make-question-description
@@ -65,10 +65,10 @@
          (answerval (apply (qd-answer qd) propvals))
          (answer-layout (if answered 
                             (layout-group
-                             (layout-line 0 -0.1 2 -0.1)
-                             (layout-hcentre-text answerval +red+))
+                             (list (layout-line 0 -0.1 2 -0.1)
+                                   (layout-hcentre-text answerval +red+)))
                             (layout-line 0 -0.1 2 -0.1))))
     (apply (qd-display qd) (append propvals (list answer-layout)))))
 
 (let ((rng (make-mock-rng :state '(12 20))))
-  (generate-question rng (second *question-db*) t))
+  (generate-question rng (gethash "Basic Number Operations/Addition" *question-db*) t))
