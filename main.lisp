@@ -117,13 +117,13 @@
 (defmethod render ((obj layout-text) &optional bbox)
   (set-source-color (colour obj))
   (select-font-face "Segoe UI" :normal :normal)
-  (set-font-size 12)
+  (set-font-size 14)
   (move-to 0 0)
   (show-text (text obj)))
 
 (defmethod bbox ((obj layout-text))
   (select-font-face "Segoe UI" :normal :normal)
-  (set-font-size 12)
+  (set-font-size 14)
   (multiple-value-bind (x-bearing y-bearing text-width text-height xadv yadv)
     (text-extents (text obj))
     (list xadv yadv)))
@@ -164,7 +164,7 @@
 (defmethod render ((obj layout-hcentre-text) &optional bbox)
   (set-source-color (colour obj))
   (select-font-face "Segoe UI" :normal :normal)
-  (set-font-size 12)
+  (set-font-size 14)
   (let* ((te (multiple-value-list (text-extents (text obj))))
          (xadv (fifth te)))
     (move-to (/ (- (car bbox) xadv) 2) 0))
@@ -247,18 +247,16 @@
                           (layout-line 0 5 72 5))))
     (apply (qd-display qd) (append propvals (list answer-layout)))))
 
-(with-pdf-file ("example.pdf" *letter-width* *letter-height*)
+(with-png-file ("example.png" :rgb24 *letter-width* *letter-height*)
   (render (layout-background +white+))
   (let* ((rng (make-prng :state (make-random-state t)))
          (qd (gethash "Basic Number Operations/Addition" *question-db*))
-         (allgen (list)))
-    (dotimes (unused 12 allgen)
-      (push (generate-question rng qd t) allgen))
+         (allgen (loop for i to 11 collect (generate-question rng qd t))))
     (reset-trans-matrix)
-    (mapc #'(lambda (qlayout) 
-              (translate 0 40)
-              (render qlayout))
-          allgen)))
+    (translate 0 40)
+    (loop for qlayout in allgen do
+          (render qlayout)
+          (translate (/ *letter-width* 3) 0))))
 
 (defparameter *letter-width* 612)
 (defparameter *letter-height* 792)
@@ -268,7 +266,7 @@
                (dolist (obj (list
                               (layout-background +white+)
                               (layout-horiz
-                                (list (layout-text "12 + 20 = ")
+                                (list (layout-text "12 + 20 = x⁴")
                                       (layout-group
                                         (list (layout-line 0 5 72 5)
                                               (layout-hcentre-text "32" +red+)))))))
