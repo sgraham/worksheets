@@ -12,6 +12,12 @@
 
 (declaim (optimize (debug 3) (safety 3) (speed 0) (space 0)))
 
+(defmacro with-pdf-file ((filename width height) &body body)
+  "Execute the body with context bound to a newly created pdf
+  file, and close it after executing body."
+  `(let* ((*context* (create-pdf-context ,filename ,width ,height)))
+         (unwind-protect (progn ,@body)
+                         (destroy *context*))))
 ;;;
 ;;;
 ;;; random numbers
@@ -102,6 +108,8 @@
 (deflayoutobj layout-line x0 y0 x1 y1)
 (deflayoutobj layout-hcentre-text text colour)
 
+; todo; merge render/bbox with a macro that walks and does show/extents?
+
 (defmethod render ((obj layout-background) &optional bbox)
   (set-source-color (colour obj))
   (paint))
@@ -134,18 +142,15 @@
 ; todo; rewrite not in pascal
 (defmethod render ((obj layout-horiz) &optional bbox)
   (let ((x 0))
+    (save)
     (dolist (cmd (children obj))
       (render cmd)
       (setf x (+ x (first (bbox cmd))))
-      (reset-trans-matrix)
-      (translate 0 100) ;; todo; temp
-      (translate x 0))))
+      (translate x 0))
+    (restore)))
+
 
 (defmethod render ((obj layout-line) &optional bbox)
-  (print (x0 obj))
-  (print (y0 obj))
-  (print (x1 obj))
-  (print (y1 obj))
   (set-source-color +black+)
   (move-to (x0 obj) (y0 obj))
   (line-to (x1 obj) (y1 obj))
@@ -157,7 +162,6 @@
   (list (- (x1 obj) (x0 obj)) (- (y1 obj) (y0 obj))))
 
 (defmethod render ((obj layout-hcentre-text) &optional bbox)
-  (print bbox)
   (set-source-color (colour obj))
   (select-font-face "Segoe UI" :normal :normal)
   (set-font-size 12)
@@ -204,8 +208,9 @@
     :answer #'(lambda (a b) (+ a b))
     :display #'(lambda (a b answer)
                  (layout-horiz
-                   (layout-text (format nil "~a + ~a = " a b))
-                   answer))))
+                   (list 
+                     (layout-text (format nil "~a + ~a = " a b))
+                     answer)))))
 
 (add-question-description
   (make-question-description
@@ -222,8 +227,8 @@
                           (eq (/ a b) (floor a b))))
     :display #'(lambda (a b answer)
                  (layout-horiz
-                   (layout-text (format nil "~a \div ~a = " a b))
-                   answer))))
+                   (list (layout-text (format nil "~a \div ~a = " a b))
+                         answer)))))
 
 (defun generate-question (rng qd answered)
   (let* ((propvals (dotimes (bail 1000) ; todo
@@ -234,7 +239,7 @@
                          (when (apply (qd-constraints qd) possiblevals)
                            (return possiblevals))
                          (return possiblevals)))))
-         (answerval (apply (qd-answer qd) propvals))
+         (answerval (write-to-string (apply (qd-answer qd) propvals)))
          (answer-layout (if answered 
                           (layout-group
                             (list (layout-line 0 5 72 5)
@@ -242,8 +247,18 @@
                           (layout-line 0 5 72 5))))
     (apply (qd-display qd) (append propvals (list answer-layout)))))
 
-;(let ((rng (make-mock-rng :state '(12 20))))
-  ;(generate-question rng (gethash "Basic Number Operations/Addition" *question-db*) nil))
+(with-pdf-file ("example.pdf" *letter-width* *letter-height*)
+  (render (layout-background +white+))
+  (let* ((rng (make-prng :state (make-random-state t)))
+         (qd (gethash "Basic Number Operations/Addition" *question-db*))
+         (allgen (list)))
+    (dotimes (unused 12 allgen)
+      (push (generate-question rng qd t) allgen))
+    (reset-trans-matrix)
+    (mapc #'(lambda (qlayout) 
+              (translate 0 40)
+              (render qlayout))
+          allgen)))
 
 (defparameter *letter-width* 612)
 (defparameter *letter-height* 792)
@@ -258,13 +273,6 @@
                                         (list (layout-line 0 5 72 5)
                                               (layout-hcentre-text "32" +red+)))))))
                  (render obj)))
-
-(with-png-file ("example.png" :rgb24 *letter-width* *letter-height*)
-               (render (layout-group
-                       (list
-                         (layout-line 0 5 72 5)
-                         (layout-hcentre-text "32" +red+)))))
-
 
 ;;;
 ;;;
@@ -324,12 +332,6 @@
 ;(with-png-file ("example.png" :rgb24 *letter-width* *letter-height*)
 ;  (draw-test))
 ;
-;(defmacro with-pdf-file ((filename width height) &body body)
-;  "Execute the body with context bound to a newly created pdf
-;  file, and close it after executing body."
-;  `(let* ((*context* (create-pdf-context ,filename ,width ,height)))
-;         (unwind-protect (progn ,@body)
-;                         (destroy *context*))))
 ;
 ;(with-pdf-file ("example.pdf" *letter-width* *letter-height*)
 ;  (draw-test))
