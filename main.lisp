@@ -1,11 +1,17 @@
 (asdf:oos 'asdf:load-op :cl-cairo2)
 (asdf:oos 'asdf:load-op :cl-colors)
+(asdf:oos 'asdf:load-op :iterate)
+(asdf:oos 'asdf:load-op :cl-who)
+(asdf:oos 'asdf:load-op :cl-base64)
+(asdf:oos 'asdf:load-op :ironclad)
 (asdf:oos 'asdf:load-op :fiveam)
 
 (defpackage :learnr
   (:use :common-lisp
         :cl-cairo2
         :cl-colors
+        :cl-who
+        :iterate
         :it.bese.FiveAM))
 
 (in-package :learnr)
@@ -18,9 +24,14 @@
   `(let* ((*context* (create-pdf-context ,filename ,width ,height)))
          (unwind-protect (progn ,@body)
                          (destroy *context*))))
+
+(defparameter *letter-width* 612)
+(defparameter *letter-height* 792)
+
+
 ;;;
 ;;;
-;;; random numbers
+;;; utilities
 ;;;
 ;;;
 
@@ -39,7 +50,19 @@
     (assert (and (<= min val) (>= max val)))
     val))
 
+(defun get-id ()
+  "generates a url-embeddable id in an overly complicated way"
+  (string-right-trim "="
+                     (cl-base64:usb8-array-to-base64-string
+                       (ironclad:digest-sequence
+                         :sha1
+                         (ironclad:ascii-string-to-byte-array
+                           (format nil "~a:~a"
+                                   (random 10000000)
+                                   (get-internal-real-time)))))))
 
+
+
 ;;;
 ;;;
 ;;; properties
@@ -62,6 +85,7 @@
     num))
 
 
+
 ;;;
 ;;;
 ;;; layout
@@ -114,16 +138,41 @@
   (set-source-color (colour obj))
   (paint))
 
+#| ; not sure about getting bounds in cairo for shapes
+(macroexpand-1
+'(deflayoutobjrender layout-text
+  (set-source-color (colour obj))
+  (select-font-face "Segoe UI" :normal :normal)
+  (set-font-size 13)
+  (move-to 0 0)
+  (handle-text)))
+
+(defun sub-as-render (body)
+  body)
+
+(defun sub-as-bbox (body)
+  "handle-text -> text-extents"
+
+  body)
+
+(defmacro deflayoutobjrender (lotype &body body)
+  `(progn
+     (defmethod render ((obj ,lotype) &optional bbox)
+       ,@(sub-as-render body))
+     (defmethod bbox ((obj ,lotype))
+       ,@(sub-as-bbox body))))
+|#
+
 (defmethod render ((obj layout-text) &optional bbox)
   (set-source-color (colour obj))
   (select-font-face "Segoe UI" :normal :normal)
-  (set-font-size 14)
+  (set-font-size 13)
   (move-to 0 0)
   (show-text (text obj)))
 
 (defmethod bbox ((obj layout-text))
   (select-font-face "Segoe UI" :normal :normal)
-  (set-font-size 14)
+  (set-font-size 13)
   (multiple-value-bind (x-bearing y-bearing text-width text-height xadv yadv)
     (text-extents (text obj))
     (list xadv yadv)))
@@ -164,7 +213,7 @@
 (defmethod render ((obj layout-hcentre-text) &optional bbox)
   (set-source-color (colour obj))
   (select-font-face "Segoe UI" :normal :normal)
-  (set-font-size 14)
+  (set-font-size 13)
   (let* ((te (multiple-value-list (text-extents (text obj))))
          (xadv (fifth te)))
     (move-to (/ (- (car bbox) xadv) 2) 0))
@@ -173,6 +222,7 @@
 (defmethod bbox ((obj layout-hcentre-text))
   '(0 0))
 
+
 ;;;
 ;;;
 ;;; question data
@@ -251,17 +301,98 @@
   (render (layout-background +white+))
   (let* ((rng (make-prng :state (make-random-state t)))
          (qd (gethash "Basic Number Operations/Addition" *question-db*))
-         (allgen (loop for i to 11 collect (generate-question rng qd t))))
+         (allgen (iter (for i to 11)
+                       (collect (generate-question rng qd t)))))
     (reset-trans-matrix)
     (translate 0 40)
-    (loop for qlayout in allgen do
+    (iter (for qlayout in allgen)
           (render qlayout)
           (translate (/ *letter-width* 3) 0))))
 
-(defparameter *letter-width* 612)
-(defparameter *letter-height* 792)
+(defclass question-set ()
+  ((question-description :initarg :question-description
+                         :reader question-description)
+   (cols :initarg :cols
+         :accessor cols)
+   (instr :initarg :instr
+          :accessor instr)
+   (questions :initarg :questions
+              :accessor questions)))
+
+(defclass hrow ()
+  ((items :initarg :items
+          :accessor items)
+   (bboxes :initarg :bboxes
+           :accessor bboxes)))
+
+#|(defun generate-set (qd answered &key (count (qd-default-count qd)) (cols (qd-default-cols qd)) (instr (qd-default-instr qd)))
+  (let* ((rng (make-prng :state (make-random-state t))))
+    (make-instance 'question-set
+                   :question-description qd
+                   :cols cols
+                   :instr instr
+                   :questions (iter (for i to (1- count))
+                                    (collect (generate-question rng qd answered))))))|#
+
+
+;;;
+;;;
+;;; document
+;;;
+;;;
+
+(defclass document ()
+  ((hrows :initform (list)
+          :accessor hrows)
+   (sets :initform (list)
+         :accessor sets)))
+
+(defmethod add-set ((doc document) ((qs question-set)))
+  (push (sets doc) qs))
+
+(defmethod layout-sets ((doc document))
+  ; bbox for each question
+  ; hrow based cols setting
+  ; (bbox hrow) to stack onto pages
+  (with-pdf-file (nil *letter-width* *letter-height*)
+    (let* ((hrow-groups (mapcar #'layout-set (sets doc)))
+           (hrows (concatenate 'list hrow-groups))))))
+
+
+
+
+;(add-set *doc* (generate-set (gethash "Basic Number Operations/Addition" *question-db*) t))
+;(layout-sets *doc*)
+
+"""
+- add set to document
+- edit set properties (num columns, num items, field values in description)
+    - regen (shouldn't on num columns maybe)
+- move set around in document
+- delete set
+- question number, instructions, score for tests
+
+- for laying out on pages:
+    - use null pdf context
+    - generate set of hrows
+    - pack hrows into pages, overflowing to new pages as needed
+    - render each hrow as png, insert ------ for page break
+        - ------ can be shadowed end of page, start of next
+
+- test by gen of trivial html+png
+
+- adapt math from cl-typesetting maybe? (fractions, superscripts, etc.)
+
+- question types
+    - title 'set' (name, date)
+    - hrule
+    - custom type-in-text question
+
+"""
+
+
   
-(with-png-file ("example.png" :rgb24 *letter-width* *letter-height*)
+#|(with-png-file ("example.png" :rgb24 *letter-width* *letter-height*)
                (translate 0 100)
                (dolist (obj (list
                               (layout-background +white+)
@@ -270,27 +401,7 @@
                                       (layout-group
                                         (list (layout-line 0 5 72 5)
                                               (layout-hcentre-text "32" +red+)))))))
-                 (render obj)))
-
-;;;
-;;;
-;;; document
-;;;
-;;;
-
-(defclass page ()
-  ((sets :initform (list)
-         :accessor sets)))
-
-(defclass document ()
-  ((pages :initform (list)
-          :reader pages)
-   (width :initarg :width
-          :initform 8.5
-          :reader width)
-   (height :initarg :height
-           :initform 11
-           :reader height)))
+                 (render obj)))|#
 
 ;;;
 ;;; cairo rendering for layout objects
