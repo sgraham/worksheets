@@ -141,7 +141,7 @@
 
 ; todo; merge render/bbox with a macro that walks and does show/extents?
 
-(defmethod render ((obj layout-background) &optional extents)
+(defmethod render ((obj layout-background))
   (set-source-color (colour obj))
   (paint))
 
@@ -170,7 +170,7 @@
        ,@(sub-as-bbox body))))
 |#
 
-(defmethod render ((obj layout-text) &optional extents)
+(defmethod render ((obj layout-text))
   (set-source-color (colour obj))
   (select-font-face "Segoe UI" :normal :normal)
   (set-font-size 13)
@@ -178,6 +178,7 @@
   (show-text (text obj)))
 
 (defmethod extents ((obj layout-text))
+  (new-path)
   (select-font-face "Segoe UI" :normal :normal)
   (set-font-size 13)
   (text-path (text obj))
@@ -196,30 +197,28 @@
 (defun extents-height (ext)
   (- (fourth ext) (second ext)))
 
-#|(with-png-file ("example.png" :rgb24 *letter-width* *letter-height*)
+(with-png-file ("example.png" :rgb24 *letter-width* *letter-height*)
   (new-path)
   (render (layout-background +white+))
-  (print (extents (layout-line 0 5 72 5)))
   (translate 0 100)
+  (print (extents (layout-line 0 5 72 5)))
+  (print (extents (layout-text "weewaa" +red+)))
   (print (extents (layout-hcentre
-            (list (layout-line 0 5 72 5)
-                  (layout-text "weewaa" +red+)))))
+                    (list (layout-line 0 5 72 5)
+                          (layout-text "weewaa" +red+)))))
   (render (layout-hcentre
             (list (layout-line 0 5 72 5)
-                  (layout-text "weewaa" +red+)))))|#
-
-; todo; rewrite not in pascal
-(defmethod render ((obj layout-horiz) &optional extents)
-  (let ((x 0))
-    (save)
-    (dolist (cmd (children obj))
-      (render cmd)
-      (setf x (+ x (first (bbox cmd))))
-      (translate x 0))
-    (restore)))
+                  (layout-text "weewaa" +red+)))))
 
 (defmethod render ((obj layout-horiz))
-  )
+  (let ((x 0))
+    (iter (for c in (children obj))
+          (save)
+          (render c)
+          (setf x (+ x (extents-width (extents c))))
+          (translate x 0)
+          (restore))))
+
 (defmethod extents ((obj layout-horiz))
   (let* ((childextents (mapcar #'extents (children obj)))
          (totalwidth (reduce #'+ (mapcar #'extents-width childextents)))
@@ -230,7 +229,7 @@
           (+ leftmostpoint totalwidth)
           (fourth unioned))))
 
-(defmethod render ((obj layout-line) &optional extents)
+(defmethod render ((obj layout-line))
   (new-path)
   (set-source-color +black+)
   (move-to (x0 obj) (y0 obj))
@@ -243,16 +242,16 @@
   (line-to (x1 obj) (y1 obj))
   (multiple-value-list (path-extents)))
 
-(defmethod render ((obj layout-hcentre) &optional extents)
+(defmethod render ((obj layout-hcentre))
   (let ((allwidth (extents-width (extents obj))))
-    (save)
     (iter (for c in (children obj))
+          (save)
           (translate (/ (- allwidth
                            (extents-width (extents c)))
                         2)
                      0)
-          (render c))
-    (restore)))
+          (render c)
+          (restore))))
 
 (defmethod extents ((obj layout-hcentre))
   (reduce #'extents-union (mapcar #'extents (children obj))))

@@ -51,7 +51,11 @@
     (assert-equal '(0.0d0 0.0d0 80.0d0 0.0d0)
                   (extents (layout-horiz (list
                                            (layout-line 0 0 50 0)
-                                           (layout-line 0 0 30 0)))))))
+                                           (layout-line 0 0 30 0)))))
+    (assert-equal '(0.0d0 -6.65625d0 72.0d0 5.0d0)
+                  (extents (layout-hcentre
+                             (list (layout-line 0 5 72 5)
+                                   (layout-text "weewaa" +red+)))))))
 
 
 (run-tests)
