@@ -99,7 +99,7 @@
 ;;; layout
 ;;;
 ;;;
-(defgeneric render (layout-obj &optional extents))
+(defgeneric render (layout-obj))
 (defgeneric extents (layout-obj))
 
 (defun just-names (items)
@@ -136,7 +136,6 @@
 (deflayoutobj layout-background colour)
 (deflayoutobj layout-text text (colour +black+))
 (deflayoutobj layout-horiz children spacing)
-(deflayoutobj layout-group children)
 (deflayoutobj layout-line x0 y0 x1 y1)
 (deflayoutobj layout-hcentre children)
 
@@ -187,11 +186,6 @@
 (with-null-pdf-context
   (extents (layout-text "Thsi is stuff")))
 
-(defmethod render ((obj layout-group) &optional extents)
-  (let ((groupextents (extents obj)))
-    (dolist (cmd (children obj))
-      (render cmd groupextents))))
-
 (defun extents-union (a b)
   (list (min (first a) (first b))
         (min (second a) (second b))
@@ -201,14 +195,6 @@
   (- (third ext) (first ext)))
 (defun extents-height (ext)
   (- (fourth ext) (second ext)))
-
-(defmethod extents ((obj layout-group))
-  (new-path)
-  (let ((childextents (mapcar #'extents (children obj))))
-    (reduce #'extents-union childextents)))
-
-#|(with-null-pdf-context
-  (extents (layout-group (list (layout-text "stuffWp'`p") (layout-text "zzzzzzzzzzzzzzzzz")))))|#
 
 #|(with-png-file ("example.png" :rgb24 *letter-width* *letter-height*)
   (new-path)
@@ -232,11 +218,17 @@
       (translate x 0))
     (restore)))
 
-(defmethod bbox ((obj layout-horiz))
-  (let ((bboxes (mapcar #'(lambda (child) (bbox child))
-                        (children obj))))
-    (list (reduce #'max bboxes :key #'car)
-          (reduce #'max bboxes :key #'cadr))))
+(defmethod render ((obj layout-horiz))
+  )
+(defmethod extents ((obj layout-horiz))
+  (let* ((childextents (mapcar #'extents (children obj)))
+         (totalwidth (reduce #'+ (mapcar #'extents-width childextents)))
+         (unioned (reduce #'extents-union childextents))
+         (leftmostpoint (first (first childextents))))
+    (list leftmostpoint
+          (second unioned)
+          (+ leftmostpoint totalwidth)
+          (fourth unioned))))
 
 (defmethod render ((obj layout-line) &optional extents)
   (new-path)
@@ -246,28 +238,10 @@
   (stroke))
 
 (defmethod extents ((obj layout-line))
+  (new-path)
   (move-to (x0 obj) (y0 obj))
   (line-to (x1 obj) (y1 obj))
   (multiple-value-list (path-extents)))
-
-#|(defmethod render ((obj layout-hcentre-text) &optional extents)
-  (set-source-color (colour obj))
-  (select-font-face "Segoe UI" :normal :normal)
-  (set-font-size 13)
-  (if (null extents)
-    (move-to 0 0)
-    (let ((text-width (extents-width (extents obj))))
-      (print text-width)
-      (print (extents-width extents))
-      (move-to (/ (- (extents-width extents) text-width) 2) 0)))
-  (show-text (text obj)))|#
-
-#|(defmethod extents ((obj layout-hcentre-text))
-  (new-path)
-  (select-font-face "Segoe UI" :normal :normal)
-  (set-font-size 13)
-  (text-path (text obj))
-  (multiple-value-list (path-extents)))|#
 
 (defmethod render ((obj layout-hcentre) &optional extents)
   (let ((allwidth (extents-width (extents obj))))
@@ -461,18 +435,6 @@
 
 """
 
-
-  
-#|(with-png-file ("example.png" :rgb24 *letter-width* *letter-height*)
-               (translate 0 100)
-               (dolist (obj (list
-                              (layout-background +white+)
-                              (layout-horiz
-                                (list (layout-text "12 + 20 = x⁴")
-                                      (layout-group
-                                        (list (layout-line 0 5 72 5)
-                                              (layout-hcentre-text "32" +red+)))))))
-                 (render obj)))|#
 
 ;;;
 ;;; cairo rendering for layout objects
