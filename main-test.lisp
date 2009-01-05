@@ -1,32 +1,29 @@
+(asdf:oos 'asdf:load-op :lisp-unit)
+
 (in-package :learnr)
 
-(def-suite main)
-(in-suite main)
+(use-package :lisp-unit)
 
-(test document-setup
-  (let ((doc (make-instance 'document)))
-       doc))
+(defmacro assert-in-range (val min max)
+  (let ((n (gensym)))
+    `(let ((,n ,val))
+       (assert-true (and (<= ,min ,n) (>= ,max ,n))))))
 
-(run 'main)
-
-
-(def-suite random)
-(in-suite random)
-
-(test real-random "test to make sure range on real random is working"
+(define-test real-random
   (let ((rng (make-prng :state (make-random-state t))))
     (dotimes (rep 100)
-             (let ((x (get-random rng 10 20)))
-               (is (and (<= 10 x) (>= 20 x)))))
+      (assert-in-range (get-random rng 10 20) 10 20))
     (dotimes (rep 100)
-             (let ((x (get-random rng -20 20)))
-               (is (and (<= -20 x) (>= 20 x)))))))
+      (assert-in-range (get-random rng -20 20) -20 20))))
 
-(test mock-random "mock random works"
+(define-test mock-random
   (let ((rng (make-mock-rng :state (list 15 18 20))))
-    (is (= 15 (get-random rng 10 20)))
-    (is (= 18 (get-random rng 10 20)))
-    (is (= 20 (get-random rng 10 20)))))
+    (assert-equal 15 (get-random rng 10 20))
+    (assert-equal 18 (get-random rng 10 20))
+    (assert-equal 20 (get-random rng 10 20))))
 
-(run! 'random)
+(define-test line-extents
+  (with-null-pdf-context
+    (assert-equal '(0.0d0 5.0d0 100.0d0 5.0d0) (extents (layout-line 0 5 100 5)))))
 
+(run-tests)

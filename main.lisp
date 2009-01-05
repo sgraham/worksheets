@@ -4,15 +4,13 @@
 (asdf:oos 'asdf:load-op :cl-who)
 (asdf:oos 'asdf:load-op :cl-base64)
 (asdf:oos 'asdf:load-op :ironclad)
-(asdf:oos 'asdf:load-op :fiveam)
 
 (defpackage :learnr
   (:use :common-lisp
         :cl-cairo2
         :cl-colors
         :cl-who
-        :iterate
-        :it.bese.FiveAM))
+        :iterate))
 
 (in-package :learnr)
 
@@ -22,8 +20,18 @@
   "Execute the body with context bound to a newly created pdf
   file, and close it after executing body."
   `(let* ((*context* (create-pdf-context ,filename ,width ,height)))
-         (unwind-protect (progn ,@body)
-                         (destroy *context*))))
+     (unwind-protect (progn ,@body)
+       (destroy *context*))))
+
+(defmacro with-null-pdf-context (&body body)
+  `(let* ((*context* (create-pdf-context "/dev/null" *letter-width* *letter-height*)))
+     (unwind-protect (progn ,@body)
+       (destroy *context*))))
+
+(with-pdf-file ((cffi:null-pointer) 500 500)
+  (move-to 100 100)
+  (line-to 200 200)
+  (stroke))
 
 (defparameter *letter-width* 612)
 (defparameter *letter-height* 792)
@@ -36,7 +44,7 @@
 ;;;
 
 (defgeneric get-random (rng min max)
-            (:documentation "get a random number from rng in [min..max]"))
+  (:documentation "get a random number from rng in [min..max]"))
 
 (defstruct prng state)
 (defmethod get-random ((rng prng) min max)
@@ -91,8 +99,8 @@
 ;;; layout
 ;;;
 ;;;
-(defgeneric render (layout-obj &optional bbox))
-(defgeneric bbox (layout-obj))
+(defgeneric render (layout-obj &optional extents))
+(defgeneric extents (layout-obj))
 
 (defun just-names (items)
   (mapcar #'(lambda (item)
@@ -130,66 +138,92 @@
 (deflayoutobj layout-horiz children spacing)
 (deflayoutobj layout-group children)
 (deflayoutobj layout-line x0 y0 x1 y1)
-(deflayoutobj layout-hcentre-text text colour)
+(deflayoutobj layout-hcentre children)
 
 ; todo; merge render/bbox with a macro that walks and does show/extents?
 
-(defmethod render ((obj layout-background) &optional bbox)
+(defmethod render ((obj layout-background) &optional extents)
   (set-source-color (colour obj))
   (paint))
 
-#| ; not sure about getting bounds in cairo for shapes
+#|
 (macroexpand-1
 '(deflayoutobjrender layout-text
   (set-source-color (colour obj))
   (select-font-face "Segoe UI" :normal :normal)
   (set-font-size 13)
   (move-to 0 0)
-  (handle-text)))
+  (handle-text (text obj))))
 
 (defun sub-as-render (body)
   body)
 
 (defun sub-as-bbox (body)
   "handle-text -> text-extents"
-
-  body)
+  (mapcan #'(lambda (x) (and (not (eq (car x) 'set-source-color)) (list x)))
+          body))
 
 (defmacro deflayoutobjrender (lotype &body body)
   `(progn
-     (defmethod render ((obj ,lotype) &optional bbox)
+     (defmethod render ((obj ,lotype) &optional extents)
        ,@(sub-as-render body))
      (defmethod bbox ((obj ,lotype))
        ,@(sub-as-bbox body))))
 |#
 
-(defmethod render ((obj layout-text) &optional bbox)
+(defmethod render ((obj layout-text) &optional extents)
   (set-source-color (colour obj))
   (select-font-face "Segoe UI" :normal :normal)
   (set-font-size 13)
   (move-to 0 0)
   (show-text (text obj)))
 
-(defmethod bbox ((obj layout-text))
+(defmethod extents ((obj layout-text))
   (select-font-face "Segoe UI" :normal :normal)
   (set-font-size 13)
-  (multiple-value-bind (x-bearing y-bearing text-width text-height xadv yadv)
-    (text-extents (text obj))
-    (list xadv yadv)))
+  (text-path (text obj))
+  (multiple-value-list (path-extents)))
 
-(defmethod render ((obj layout-group) &optional bbox)
-  (let ((groupbbox (bbox obj)))
+(with-null-pdf-context
+  (extents (layout-text "Thsi is stuff")))
+
+(defmethod render ((obj layout-group) &optional extents)
+  (let ((groupextents (extents obj)))
     (dolist (cmd (children obj))
-      (render cmd groupbbox))))
+      (render cmd groupextents))))
 
-(defmethod bbox ((obj layout-group))
-  (let ((bboxes (mapcar #'(lambda (child) (bbox child))
-                        (children obj))))
-    (list (reduce #'max bboxes :key #'car)
-          (reduce #'max bboxes :key #'cadr))))
+(defun extents-union (a b)
+  (list (min (first a) (first b))
+        (min (second a) (second b))
+        (max (third a) (third b))
+        (max (fourth a) (fourth b))))
+(defun extents-width (ext)
+  (- (third ext) (first ext)))
+(defun extents-height (ext)
+  (- (fourth ext) (second ext)))
+
+(defmethod extents ((obj layout-group))
+  (new-path)
+  (let ((childextents (mapcar #'extents (children obj))))
+    (reduce #'extents-union childextents)))
+
+#|(with-null-pdf-context
+  (extents (layout-group (list (layout-text "stuffWp'`p") (layout-text "zzzzzzzzzzzzzzzzz")))))|#
+
+#|(with-png-file ("example.png" :rgb24 *letter-width* *letter-height*)
+  (new-path)
+  (render (layout-background +white+))
+  (print (extents (layout-line 0 5 72 5)))
+  (translate 0 100)
+  (print (extents (layout-hcentre
+            (list (layout-line 0 5 72 5)
+                  (layout-text "weewaa" +red+)))))
+  (render (layout-hcentre
+            (list (layout-line 0 5 72 5)
+                  (layout-text "weewaa" +red+)))))|#
 
 ; todo; rewrite not in pascal
-(defmethod render ((obj layout-horiz) &optional bbox)
+(defmethod render ((obj layout-horiz) &optional extents)
   (let ((x 0))
     (save)
     (dolist (cmd (children obj))
@@ -198,29 +232,56 @@
       (translate x 0))
     (restore)))
 
+(defmethod bbox ((obj layout-horiz))
+  (let ((bboxes (mapcar #'(lambda (child) (bbox child))
+                        (children obj))))
+    (list (reduce #'max bboxes :key #'car)
+          (reduce #'max bboxes :key #'cadr))))
 
-(defmethod render ((obj layout-line) &optional bbox)
+(defmethod render ((obj layout-line) &optional extents)
+  (new-path)
   (set-source-color +black+)
   (move-to (x0 obj) (y0 obj))
   (line-to (x1 obj) (y1 obj))
   (stroke))
 
-(defmethod bbox ((obj layout-line))
+(defmethod extents ((obj layout-line))
   (move-to (x0 obj) (y0 obj))
   (line-to (x1 obj) (y1 obj))
-  (list (- (x1 obj) (x0 obj)) (- (y1 obj) (y0 obj))))
+  (multiple-value-list (path-extents)))
 
-(defmethod render ((obj layout-hcentre-text) &optional bbox)
+#|(defmethod render ((obj layout-hcentre-text) &optional extents)
   (set-source-color (colour obj))
   (select-font-face "Segoe UI" :normal :normal)
   (set-font-size 13)
-  (let* ((te (multiple-value-list (text-extents (text obj))))
-         (xadv (fifth te)))
-    (move-to (/ (- (car bbox) xadv) 2) 0))
-  (show-text (text obj)))
+  (if (null extents)
+    (move-to 0 0)
+    (let ((text-width (extents-width (extents obj))))
+      (print text-width)
+      (print (extents-width extents))
+      (move-to (/ (- (extents-width extents) text-width) 2) 0)))
+  (show-text (text obj)))|#
 
-(defmethod bbox ((obj layout-hcentre-text))
-  '(0 0))
+#|(defmethod extents ((obj layout-hcentre-text))
+  (new-path)
+  (select-font-face "Segoe UI" :normal :normal)
+  (set-font-size 13)
+  (text-path (text obj))
+  (multiple-value-list (path-extents)))|#
+
+(defmethod render ((obj layout-hcentre) &optional extents)
+  (let ((allwidth (extents-width (extents obj))))
+    (save)
+    (iter (for c in (children obj))
+          (translate (/ (- allwidth
+                           (extents-width (extents c)))
+                        2)
+                     0)
+          (render c))
+    (restore)))
+
+(defmethod extents ((obj layout-hcentre))
+  (reduce #'extents-union (mapcar #'extents (children obj))))
 
 
 ;;;
@@ -291,13 +352,13 @@
                          (return possiblevals)))))
          (answerval (write-to-string (apply (qd-answer qd) propvals)))
          (answer-layout (if answered 
-                          (layout-group
+                          (layout-hcentre
                             (list (layout-line 0 5 72 5)
-                                  (layout-hcentre-text answerval +red+)))
+                                  (layout-text answerval +red+)))
                           (layout-line 0 5 72 5))))
     (apply (qd-display qd) (append propvals (list answer-layout)))))
 
-(with-png-file ("example.png" :rgb24 *letter-width* *letter-height*)
+#|(with-png-file ("example.png" :rgb24 *letter-width* *letter-height*)
   (render (layout-background +white+))
   (let* ((rng (make-prng :state (make-random-state t)))
          (qd (gethash "Basic Number Operations/Addition" *question-db*))
@@ -307,7 +368,14 @@
     (translate 0 40)
     (iter (for qlayout in allgen)
           (render qlayout)
-          (translate (/ *letter-width* 3) 0))))
+          (translate (/ *letter-width* 3) 0))))|#
+
+
+;;;
+;;;
+;;; document
+;;;
+;;;
 
 (defclass question-set ()
   ((question-description :initarg :question-description
@@ -325,21 +393,26 @@
    (bboxes :initarg :bboxes
            :accessor bboxes)))
 
-#|(defun generate-set (qd answered &key (count (qd-default-count qd)) (cols (qd-default-cols qd)) (instr (qd-default-instr qd)))
+(defun generate-set (qd answered &key (count (qd-default-count qd)) (cols (qd-default-cols qd)) (instr (qd-default-instr qd)))
   (let* ((rng (make-prng :state (make-random-state t))))
     (make-instance 'question-set
                    :question-description qd
                    :cols cols
                    :instr instr
                    :questions (iter (for i to (1- count))
-                                    (collect (generate-question rng qd answered))))))|#
+                                    (collect (generate-question rng qd answered))))))
 
-
-;;;
-;;;
-;;; document
-;;;
-;;;
+
+(defun layout-set (qset)
+  (let ((bboxes (mapcar #'bbox (questions qset))))
+    bboxes))
+
+(defvar *testset* (generate-set (gethash "Basic Number Operations/Addition" *question-db*) t))
+
+;
+;(with-null-pdf-context
+;  (layout-set *testset*))
+
 
 (defclass document ()
   ((hrows :initform (list)
@@ -347,17 +420,15 @@
    (sets :initform (list)
          :accessor sets)))
 
-(defmethod add-set ((doc document) ((qs question-set)))
-  (push (sets doc) qs))
+(defun add-set (doc qset) (push (sets doc) qset))
 
-(defmethod layout-sets ((doc document))
+(defun layout-sets (doc)
   ; bbox for each question
   ; hrow based cols setting
   ; (bbox hrow) to stack onto pages
   (with-pdf-file (nil *letter-width* *letter-height*)
     (let* ((hrow-groups (mapcar #'layout-set (sets doc)))
            (hrows (concatenate 'list hrow-groups))))))
-
 
 
 
