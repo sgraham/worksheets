@@ -102,6 +102,14 @@
 (defgeneric render (layout-obj))
 (defgeneric extents (layout-obj))
 
+(defclass layout-object () ())
+
+(defgeneric horiz-advance (layout-obj))
+
+(defmethod horiz-advance ((obj layout-object))
+  (extents-width (extents obj)))
+
+
 (defun just-names (items)
   (mapcar #'(lambda (item)
               (if (listp item)
@@ -111,7 +119,7 @@
 
 (defmacro deflayoutobj (name &rest items)
   `(progn
-     (defclass ,name ()
+     (defclass ,name (layout-object)
        (,@(mapcar #'(lambda (item)
                       (let ((ia (intern (symbol-name item) "KEYWORD")))
                         `(,item :initarg ,ia
@@ -145,31 +153,6 @@
   (set-source-color (colour obj))
   (paint))
 
-#|
-(macroexpand-1
-'(deflayoutobjrender layout-text
-  (set-source-color (colour obj))
-  (select-font-face "Segoe UI" :normal :normal)
-  (set-font-size 13)
-  (move-to 0 0)
-  (handle-text (text obj))))
-
-(defun sub-as-render (body)
-  body)
-
-(defun sub-as-bbox (body)
-  "handle-text -> text-extents"
-  (mapcan #'(lambda (x) (and (not (eq (car x) 'set-source-color)) (list x)))
-          body))
-
-(defmacro deflayoutobjrender (lotype &body body)
-  `(progn
-     (defmethod render ((obj ,lotype) &optional extents)
-       ,@(sub-as-render body))
-     (defmethod bbox ((obj ,lotype))
-       ,@(sub-as-bbox body))))
-|#
-
 (defmethod render ((obj layout-text))
   (set-source-color (colour obj))
   (select-font-face "Segoe UI" :normal :normal)
@@ -184,6 +167,15 @@
   (text-path (text obj))
   (multiple-value-list (path-extents)))
 
+(defmethod horiz-advance ((obj layout-text))
+  (set-source-color (colour obj))
+  (select-font-face "Segoe UI" :normal :normal)
+  (set-font-size 13)
+  (move-to 0 0)
+  (multiple-value-bind (x-bearing y-bearing width height xadv yadv) (text-extents (text obj))
+    (print '(x-bearing y-bearing width height xadv yadv))
+    xadv))
+
 (with-null-pdf-context
   (extents (layout-text "Thsi is stuff")))
 
@@ -197,26 +189,13 @@
 (defun extents-height (ext)
   (- (fourth ext) (second ext)))
 
-(with-png-file ("example.png" :rgb24 *letter-width* *letter-height*)
-  (new-path)
-  (render (layout-background +white+))
-  (translate 0 100)
-  (print (extents (layout-line 0 5 72 5)))
-  (print (extents (layout-text "weewaa" +red+)))
-  (print (extents (layout-hcentre
-                    (list (layout-line 0 5 72 5)
-                          (layout-text "weewaa" +red+)))))
-  (render (layout-hcentre
-            (list (layout-line 0 5 72 5)
-                  (layout-text "weewaa" +red+)))))
-
 (defmethod render ((obj layout-horiz))
   (let ((x 0))
     (iter (for c in (children obj))
           (save)
-          (render c)
-          (setf x (+ x (extents-width (extents c))))
           (translate x 0)
+          (render c)
+          (setf x (+ x (horiz-advance c)))
           (restore))))
 
 (defmethod extents ((obj layout-horiz))
@@ -255,6 +234,16 @@
 
 (defmethod extents ((obj layout-hcentre))
   (reduce #'extents-union (mapcar #'extents (children obj))))
+
+(with-png-file ("example.png" :rgb24 *letter-width* *letter-height*)
+  (new-path)
+  (render (layout-background +white+))
+  (translate 0 100)
+  (render (layout-horiz (list
+                          (layout-text "12 + 42 = ")
+                          (layout-hcentre
+                            (list (layout-line 0 5 72 5)
+                                  (layout-text "weewaa" +red+)))))))
 
 
 ;;;
