@@ -55,7 +55,30 @@
     (assert-equal '(0.0d0 -6.65625d0 72.0d0 5.0d0)
                   (extents (layout-hcentre
                              (list (layout-line 0 5 72 5)
-                                   (layout-text "weewaa" +red+)))))))
+                                   (layout-text "weewaa" +red+)))))
+    (assert-equal '(0.0d0 5.0d0 220.0d0 5.0d0) (extents (layout-horiz (list
+                                                                        (layout-line 0 5 100 5)
+                                                                        (layout-line 20 5 120 5)))))))
 
+(define-test into-n-chunks
+  (assert-equal '((a)) (into-n-sized-chunks '(a) 3))
+  (assert-equal '((a b)) (into-n-sized-chunks '(a b) 3))
+  (assert-equal '((a b c)) (into-n-sized-chunks '(a b c) 3))
+  (assert-equal '((a b c) (d)) (into-n-sized-chunks '(a b c d) 3))
+  (assert-equal '((a b c) (d e f)) (into-n-sized-chunks '(a b c d e f) 3))
+  (assert-equal '((a b c) (d e f) (g)) (into-n-sized-chunks '(a b c d e f g) 3))
+  (assert-equal '((a b) (c d) (e f) (g)) (into-n-sized-chunks '(a b c d e f g) 2))
+  (assert-equal '((a) (b) (c) (d) (e)) (into-n-sized-chunks '(a b c d e) 1)))
+
+(define-test column-extents
+  (with-null-pdf-context
+    (assert-equal (list 0 0 *letter-width* 18.0d0)
+                  (extents (layout-columns 2 (list
+                                               (layout-line 0 5 100 20)
+                                               (layout-line 20 10 120 23)))))
+    (assert-equal (list 0 0 *letter-width* 28.0d0)
+                  (extents (layout-columns 1 (list
+                                               (layout-line 0 5 100 20)
+                                               (layout-line 20 10 120 23)))))))
 
 (run-tests)

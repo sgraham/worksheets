@@ -146,6 +146,7 @@
 (deflayoutobj layout-horiz children spacing)
 (deflayoutobj layout-line x0 y0 x1 y1)
 (deflayoutobj layout-hcentre children)
+(deflayoutobj layout-columns num children)
 
 ; todo; merge render/bbox with a macro that walks and does show/extents?
 
@@ -176,14 +177,13 @@
     (print '(x-bearing y-bearing width height xadv yadv))
     xadv))
 
-(with-null-pdf-context
-  (extents (layout-text "Thsi is stuff")))
-
-(defun extents-union (a b)
-  (list (min (first a) (first b))
-        (min (second a) (second b))
-        (max (third a) (third b))
-        (max (fourth a) (fourth b))))
+(defun extents-union (a &optional b)
+  (if (null b)
+    a
+    (list (min (first a) (first b))
+          (min (second a) (second b))
+          (max (third a) (third b))
+          (max (fourth a) (fourth b)))))
 (defun extents-width (ext)
   (- (third ext) (first ext)))
 (defun extents-height (ext)
@@ -200,7 +200,8 @@
 
 (defmethod extents ((obj layout-horiz))
   (let* ((childextents (mapcar #'extents (children obj)))
-         (totalwidth (reduce #'+ (mapcar #'extents-width childextents)))
+         (totalwidth (reduce #'+ (append (mapcar #'extents-width childextents)
+                                         (mapcar #'first childextents))))
          (unioned (reduce #'extents-union childextents))
          (leftmostpoint (first (first childextents))))
     (list leftmostpoint
@@ -235,15 +236,48 @@
 (defmethod extents ((obj layout-hcentre))
   (reduce #'extents-union (mapcar #'extents (children obj))))
 
+(defun into-n-sized-chunks (children n)
+  (assert (> n 0))
+  (if (<= (length children) n)
+    (list children)
+    (cons (subseq children 0 n)
+          (into-n-sized-chunks (subseq children n) n))))
+
+(defmethod render ((obj layout-columns))
+  )
+
+
+(defmethod extents ((obj layout-columns))
+  (let* ((chunked (into-n-sized-chunks (children obj) (num obj)))
+         (chunked-extents (mapcar #'(lambda (x) (mapcar #'extents x)) chunked))
+         (row-extents (mapcar #'(lambda (x) (reduce #'extents-union x)) chunked-extents)) ; hmm, union, or max? I think union because of initial advance
+         (row-heights (mapcar #'extents-height row-extents))
+         (total-height (reduce #'+ row-heights)))
+    (list 0 0 *letter-width* total-height)))
+
+#|
 (with-png-file ("example.png" :rgb24 *letter-width* *letter-height*)
   (new-path)
   (render (layout-background +white+))
   (translate 0 100)
-  (render (layout-horiz (list
+  (render (layout-columns
+            3
+            (list (layout-horiz (list
+                                  (layout-text "12 + 42 = ")
+                                  (layout-hcentre
+                                    (list (layout-line 0 5 72 5)
+                                          (layout-text "weewaa" +red+)))))
+                  (layout-horiz (list
+                                  (layout-text "12 + 42 = ")
+                                  (layout-hcentre
+                                    (list (layout-line 0 5 72 5)
+                                          (layout-text "weewaa" +red+)))))
+                  (layout-horiz (list
                           (layout-text "12 + 42 = ")
                           (layout-hcentre
                             (list (layout-line 0 5 72 5)
-                                  (layout-text "weewaa" +red+)))))))
+                                  (layout-text "weewaa" +red+)))))))))
+|#
 
 
 ;;;
