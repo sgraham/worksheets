@@ -81,4 +81,13 @@
                                                (layout-line 0 5 100 20)
                                                (layout-line 20 10 120 23)))))))
 
+(define-test get-col-offsets
+  (assert-equal '(0 50 100) (get-col-offsets 3 150))
+  (assert-equal '(0 1/2) (get-col-offsets 2 1))
+  (assert-equal '(0) (get-col-offsets 1 50)))
+
+(define-test row-offsets-from-heights
+  (assert-equal '(0 15 33) (row-offsets-from-heights '(15 18 10))))
+
+
 (run-tests)

@@ -4,6 +4,7 @@
 (asdf:oos 'asdf:load-op :cl-who)
 (asdf:oos 'asdf:load-op :cl-base64)
 (asdf:oos 'asdf:load-op :ironclad)
+(asdf:oos 'asdf:load-op :symbolicweb)
 
 (defpackage :learnr
   (:use :common-lisp
@@ -243,17 +244,48 @@
     (cons (subseq children 0 n)
           (into-n-sized-chunks (subseq children n) n))))
 
-(defmethod render ((obj layout-columns))
-  )
+(defun get-layout-columns-data (obj)
+  (let* ((chunked (into-n-sized-chunks (children obj) (num obj)))
+         (chunked-extents (mapcar #'(lambda (x) (mapcar #'extents x)) chunked))
+         (row-extents (mapcar #'(lambda (x) (reduce #'extents-union x)) chunked-extents)) ; hmm, union, or max? I think union because of initial advance
+         (row-heights (mapcar #'extents-height row-extents)))
+    (list chunked row-heights)))
 
+(defun get-col-offsets (num width)
+  (iter (for i from 0 below width by (/ width num))
+        (collect i)))
+
+(defun row-offsets-from-heights (row-heights)
+  (let ((summed (iter (for i in row-heights)
+                      (sum i into x)
+                      (collect x))))
+    (cons 0 (subseq summed 0 (1- (length summed))))))
+
+
+; todo; rewrite without iter
+#|
+(defmethod render ((obj layout-columns))
+  (let* ((column-data (get-layout-columns-data obj))
+         (chunked (first column-data))
+         (row-offsets (row-offsets-from-heights (second column-data)))
+         (col-offsets (get-col-offsets (num obj) *letter-width*)))
+    (mapcar #'list
+    (iter (for i below col-offsets)
+          (iter (for j in row-offsets)
+                (render 
+                  |#
 
 (defmethod extents ((obj layout-columns))
+  (let* ((column-data (get-layout-columns-data obj))
+         (total-height (reduce #'+ (second column-data))))
+    (list 0 0 *letter-width* total-height)))
+#|
   (let* ((chunked (into-n-sized-chunks (children obj) (num obj)))
          (chunked-extents (mapcar #'(lambda (x) (mapcar #'extents x)) chunked))
          (row-extents (mapcar #'(lambda (x) (reduce #'extents-union x)) chunked-extents)) ; hmm, union, or max? I think union because of initial advance
          (row-heights (mapcar #'extents-height row-extents))
          (total-height (reduce #'+ row-heights)))
-    (list 0 0 *letter-width* total-height)))
+    |#
 
 #|
 (with-png-file ("example.png" :rgb24 *letter-width* *letter-height*)
