@@ -72,11 +72,11 @@
 
 (define-test column-extents
   (with-null-pdf-context
-    (assert-equal (list 0 0 *letter-width* 18.0d0)
+    (assert-equal (list 0 0 *page-width* 18.0d0)
                   (extents (layout-columns 2 (list
                                                (layout-line 0 5 100 20)
                                                (layout-line 20 10 120 23)))))
-    (assert-equal (list 0 0 *letter-width* 28.0d0)
+    (assert-equal (list 0 0 *page-width* 28.0d0)
                   (extents (layout-columns 1 (list
                                                (layout-line 0 5 100 20)
                                                (layout-line 20 10 120 23)))))))

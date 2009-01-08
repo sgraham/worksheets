@@ -36,6 +36,9 @@
 
 (defparameter *letter-width* 612)
 (defparameter *letter-height* 792)
+(defparameter *margin* 36)
+(defparameter *page-width* (- *letter-width* *margin* *margin*))
+(defparameter *page-height* (- *letter-height* *margin* *margin*))
 
 
 ;;;
@@ -265,7 +268,7 @@
 (defmethod render ((obj layout-columns))
   (let* ((row-heights (get-row-heights obj))
          (row-offsets (row-offsets-from-heights row-heights))
-         (col-offsets (get-col-offsets (num obj) *letter-width*)))
+         (col-offsets (get-col-offsets (num obj) *page-width*)))
     (iter (for child in (children obj))
           (for i from 0)
           (multiple-value-bind (row col) (floor i (num obj))
@@ -278,19 +281,19 @@
 (defmethod extents ((obj layout-columns))
   (let* ((row-heights (get-row-heights obj))
          (total-height (reduce #'+ row-heights)))
-    (list 0 0 *letter-width* total-height)))
+    (list 0 0 *page-width* total-height)))
 
-;(with-png-file ("example.png" :rgb24 *letter-width* *letter-height*)
-;  (new-path)
-;  (render (layout-background +white+))
-;  (translate 0 100)
-;  (render (layout-columns
-;            3
-;            (list (layout-text "col1a")
-;                  (layout-text "col2a")
-;                  (layout-text "col3a")
-;                  (layout-text "col1b")
-;                  (layout-text "col2b")))))
+(with-png-file ("example.png" :rgb24 *letter-width* *letter-height*)
+  (new-path)
+  (render (layout-background +white+))
+  (translate *margin* *margin*)
+  (render (layout-columns
+            3
+            (list (layout-text "col1a")
+                  (layout-text "col2a")
+                  (layout-text "col3a")
+                  (layout-text "col1b")
+                  (layout-text "col2b")))))
 
 
 ;;;
