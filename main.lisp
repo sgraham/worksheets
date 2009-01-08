@@ -244,12 +244,12 @@
     (cons (subseq children 0 n)
           (into-n-sized-chunks (subseq children n) n))))
 
-(defun get-layout-columns-data (obj)
+(defun get-row-heights (obj)
   (let* ((chunked (into-n-sized-chunks (children obj) (num obj)))
          (chunked-extents (mapcar #'(lambda (x) (mapcar #'extents x)) chunked))
          (row-extents (mapcar #'(lambda (x) (reduce #'extents-union x)) chunked-extents)) ; hmm, union, or max? I think union because of initial advance
          (row-heights (mapcar #'extents-height row-extents)))
-    (list chunked row-heights)))
+    row-heights))
 
 (defun get-col-offsets (num width)
   (iter (for i from 0 below width by (/ width num))
@@ -262,54 +262,35 @@
     (cons 0 (subseq summed 0 (1- (length summed))))))
 
 
-; todo; rewrite without iter
-#|
 (defmethod render ((obj layout-columns))
-  (let* ((column-data (get-layout-columns-data obj))
-         (chunked (first column-data))
-         (row-offsets (row-offsets-from-heights (second column-data)))
+  (let* ((row-heights (get-row-heights obj))
+         (row-offsets (row-offsets-from-heights row-heights))
          (col-offsets (get-col-offsets (num obj) *letter-width*)))
-    (mapcar #'list
-    (iter (for i below col-offsets)
-          (iter (for j in row-offsets)
-                (render 
-                  |#
+    (iter (for child in (children obj))
+          (for i from 0)
+          (multiple-value-bind (row col) (floor i (num obj))
+            (save)
+            (translate (nth col col-offsets) (nth row row-offsets))
+            (render child)
+            (restore)))))
+
 
 (defmethod extents ((obj layout-columns))
   (let* ((column-data (get-layout-columns-data obj))
-         (total-height (reduce #'+ (second column-data))))
-    (list 0 0 *letter-width* total-height)))
-#|
-  (let* ((chunked (into-n-sized-chunks (children obj) (num obj)))
-         (chunked-extents (mapcar #'(lambda (x) (mapcar #'extents x)) chunked))
-         (row-extents (mapcar #'(lambda (x) (reduce #'extents-union x)) chunked-extents)) ; hmm, union, or max? I think union because of initial advance
-         (row-heights (mapcar #'extents-height row-extents))
          (total-height (reduce #'+ row-heights)))
-    |#
+    (list 0 0 *letter-width* total-height)))
 
-#|
-(with-png-file ("example.png" :rgb24 *letter-width* *letter-height*)
-  (new-path)
-  (render (layout-background +white+))
-  (translate 0 100)
-  (render (layout-columns
-            3
-            (list (layout-horiz (list
-                                  (layout-text "12 + 42 = ")
-                                  (layout-hcentre
-                                    (list (layout-line 0 5 72 5)
-                                          (layout-text "weewaa" +red+)))))
-                  (layout-horiz (list
-                                  (layout-text "12 + 42 = ")
-                                  (layout-hcentre
-                                    (list (layout-line 0 5 72 5)
-                                          (layout-text "weewaa" +red+)))))
-                  (layout-horiz (list
-                          (layout-text "12 + 42 = ")
-                          (layout-hcentre
-                            (list (layout-line 0 5 72 5)
-                                  (layout-text "weewaa" +red+)))))))))
-|#
+;(with-png-file ("example.png" :rgb24 *letter-width* *letter-height*)
+;  (new-path)
+;  (render (layout-background +white+))
+;  (translate 0 100)
+;  (render (layout-columns
+;            3
+;            (list (layout-text "col1a")
+;                  (layout-text "col2a")
+;                  (layout-text "col3a")
+;                  (layout-text "col1b")
+;                  (layout-text "col2b")))))
 
 
 ;;;
