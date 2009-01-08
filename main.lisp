@@ -276,7 +276,7 @@
 
 
 (defmethod extents ((obj layout-columns))
-  (let* ((column-data (get-layout-columns-data obj))
+  (let* ((row-heights (get-row-heights obj))
          (total-height (reduce #'+ row-heights)))
     (list 0 0 *letter-width* total-height)))
 
