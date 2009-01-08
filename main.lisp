@@ -39,6 +39,7 @@
 (defparameter *margin* 36)
 (defparameter *page-width* (- *letter-width* *margin* *margin*))
 (defparameter *page-height* (- *letter-height* *margin* *margin*))
+(defparameter *row-spacing* 10)
 
 
 ;;;
@@ -260,7 +261,7 @@
 
 (defun row-offsets-from-heights (row-heights)
   (let ((summed (iter (for i in row-heights)
-                      (sum i into x)
+                      (sum (+ i *row-spacing*) into x)
                       (collect x))))
     (cons 0 (subseq summed 0 (1- (length summed))))))
 
@@ -370,17 +371,16 @@
                           (layout-line 0 5 72 5))))
     (apply (qd-display qd) (append propvals (list answer-layout)))))
 
-#|(with-png-file ("example.png" :rgb24 *letter-width* *letter-height*)
+(with-png-file ("example.png" :rgb24 *letter-width* *letter-height*)
   (render (layout-background +white+))
   (let* ((rng (make-prng :state (make-random-state t)))
          (qd (gethash "Basic Number Operations/Addition" *question-db*))
-         (allgen (iter (for i to 11)
-                       (collect (generate-question rng qd t)))))
-    (reset-trans-matrix)
-    (translate 0 40)
-    (iter (for qlayout in allgen)
-          (render qlayout)
-          (translate (/ *letter-width* 3) 0))))|#
+         (allgen (layout-columns 3 (iter (for i to 11)
+                                         (collect (generate-question rng qd t))))))
+    (new-path)
+    (render (layout-background +white+))
+    (translate *margin* *margin*)
+    (render allgen)))
 
 
 ;;;

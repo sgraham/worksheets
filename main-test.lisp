@@ -87,7 +87,8 @@
   (assert-equal '(0) (get-col-offsets 1 50)))
 
 (define-test row-offsets-from-heights
-  (assert-equal '(0 15 33) (row-offsets-from-heights '(15 18 10))))
+  (assert-equal (list 0 (+ 15 *row-spacing*) (+ *row-spacing* *row-spacing* 33))
+                (row-offsets-from-heights '(15 18 10))))
 
 
 (run-tests)
