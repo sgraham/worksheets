@@ -11,6 +11,7 @@
         :cl-cairo2
         :cl-colors
         :cl-who
+        :sw
         :iterate))
 
 (in-package :learnr)
@@ -152,8 +153,7 @@
 (deflayoutobj layout-line x0 y0 x1 y1)
 (deflayoutobj layout-hcentre children)
 (deflayoutobj layout-columns num children)
-
-; todo; merge render/bbox with a macro that walks and does show/extents?
+(deflayoutobj layout-qnum)
 
 (defmethod render ((obj layout-background))
   (set-source-color (colour obj))
@@ -162,21 +162,21 @@
 (defmethod render ((obj layout-text))
   (set-source-color (colour obj))
   (select-font-face "Segoe UI" :normal :normal)
-  (set-font-size 13)
+  (set-font-size 12)
   (move-to 0 0)
   (show-text (text obj)))
 
 (defmethod extents ((obj layout-text))
   (new-path)
   (select-font-face "Segoe UI" :normal :normal)
-  (set-font-size 13)
+  (set-font-size 12)
   (text-path (text obj))
   (multiple-value-list (path-extents)))
 
 (defmethod horiz-advance ((obj layout-text))
   (set-source-color (colour obj))
   (select-font-face "Segoe UI" :normal :normal)
-  (set-font-size 13)
+  (set-font-size 12)
   (move-to 0 0)
   (multiple-value-bind (x-bearing y-bearing width height xadv yadv) (text-extents (text obj))
     (print '(x-bearing y-bearing width height xadv yadv))
