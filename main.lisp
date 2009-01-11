@@ -346,7 +346,7 @@
 (add-question-description
   (make-question-description
     :group "Basic Number Operations" 
-    :title "Division (Integral Answer)"
+    :title "Division (Integral)"
     :properties (list (make-property-int :name "Dividend" :min 10 :max 100)
                       (make-property-int :name "Divisor" :min 1 :max 10))
     :default-instr "Solve by dividing."
@@ -465,15 +465,38 @@
 (start-sw)
 (set-uri 'worksheets-app "/")
 
+(defwidget groupadd (html-container locked-object)
+  ((title :initarg :title
+          :reader title-of)))
+
+(defun mk-groupadd (title)
+  (make-instance 'groupadd :title title))
+
+(defmethod generate-html :around ((groupadd groupadd))
+  (who (:h2 (str (title-of groupadd)))
+       (:ul (str (dolist (child (children-of groupadd))
+              (render child))))))
+
 (defmethod main ((app worksheets-app))
   (with-slots (container adds) app
-    (maphash #'(lambda (path qd)
-                (let ((l (mk-link path :href "#")))
-                  (setf (on-click-of l)
-                        (mk-cb (l)
-                          (show-alert-box (format nil "clickity clack ~a" (qd-title qd)))))
-                  (add-to adds l)))
-             *question-db*)))
+    (let ((grouphash (make-hash-table :test #'equal)))
+      (maphash #'(lambda (path qd)
+                   (declare (ignore path))
+                   (format t "wee ~a" (qd-group qd))
+                   (let ((group (mk-groupadd (qd-group qd))))
+                     (when (null (gethash (qd-group qd) grouphash))
+                      (add-to adds group)
+                      (setf (gethash (qd-group qd) grouphash) group))))
+               *question-db*)
+      (maphash #'(lambda (path qd)
+                   (declare (ignore path))
+                   (let ((group (gethash (qd-group qd) grouphash)))
+                     (let ((l (mk-link (qd-title qd) :href "#")))
+                       (setf (on-click-of l)
+                             (mk-cb (l)
+                                    (show-alert-box (format nil "clickity clack ~a ~a" (qd-title qd) l))))
+                       (add-to group l))))
+               *question-db*))))
 
 (defmethod render ((app worksheets-app))
   (with-output-to-string (ss)
@@ -482,29 +505,12 @@
        (:head
         (:meta :name "Author" :content "Scott Graham")
         (:meta :http-equiv "X-UA-Compatible" :content "IE=edge") ;; For IE8 and up.
-        ;; TODO: Move this to a slot in APPLICATION.
         (:link :rel "stylesheet" :type "text/css" :href "/static/styles.css"))
        (:body
-         (:div :id "header"
-               (:h1 (:a :href "/" "Math Worksheets"))
-               (:h3 (:span "Quickly and easily make math worksheets!")))
-         (:div :id "content"
-               (:table :cellpadding 0 :border 0 :cellspacing 0)
-               )
-         (:div :id "menu"
-               (:h2 "Basic Number Operations")
-               (:ul
-                 (:li (:a :href "#" "Item 1"))
-                 (:li (:a :href "#" "Item 2"))
-                 (:li (:a :href "#" "Item 3"))
-                 (:li (:a :href "#" "Item 4"))))
-         (:div :id "footer"
-               (:p "&copy; 2009 Scott Graham")
-               (:a :href "http://learnr.uservoice.com/?referer_type=tab" "Feedback?"))
-               
+        (:div :id "sw-root" :style "overflow: auto;")
         (:a :accesskey 1 :href "javascript:swTerminateSession();")
         (:a :accesskey 2 :href "javascript:swDisplaySessionInfo();")
-              
+        ; todo; add something here so that search engine/text browse sees something
         (:noscript "JavaScript must be enabled.")
         (str (js-sw-headers app)))))))
 
@@ -512,10 +518,26 @@
   (with-slots (container adds) app
     (add-to (root)
       (with-html-container ()
-        (:h1 "Math Worksheets")
-        (print adds)
-        (:sw adds)
-        (:sw container)))))
+         (:div :id "header"
+               (:h1 (:a :href "/" "Math Worksheets"))
+               (:h3 (:span "Quickly and easily make math worksheets!")))
+         (:div :id "content"
+               (:table :cellpadding 0 :border 0 :cellspacing 0)
+               )
+         (:div :id "menu"
+               (:sw adds))
+         (:div :id "footer"
+               (:p "&copy; 2009 Scott Graham &bull; "
+               (:a :target "_blank" :href "http://learnr.uservoice.com/?referer_type=tab" "Feedback?"))
+               (:font :style "font-size:0.75em;"
+                      (:p "Running on "
+                          (:a :target "_blank" :href "http://sbcl.org/" "SBCL")
+                          ", "
+                          (:a :target "_blank" :href "http://groups.google.com/group/symbolicweb" "SymbolicWeb")
+                          ", and "
+                          (:a :target "_blank" :href "http://nginx.net" "nginx")
+                          "."
+                          )))))))
 
 
 
