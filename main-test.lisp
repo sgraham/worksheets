@@ -30,7 +30,7 @@
 (define-test text-extents
   (with-null-pdf-context
     (assert-equal '(0.0d0 0.0d0 0.0d0 0.0d0) (extents (layout-text "")))
-    (assert-equal '(0.15625d0 -6.65625d0 49.66796875d0 0.15625d0) (extents (layout-text "weeeeee")))))
+    (assert-equal '(0.140625d0 -6.140625d0 45.84375d0 0.140625d0) (extents (layout-text "weeeeee")))))
 
 (define-test hcentre-extents
   (with-null-pdf-context
@@ -52,7 +52,7 @@
                   (extents (layout-horiz (list
                                            (layout-line 0 0 50 0)
                                            (layout-line 0 0 30 0)))))
-    (assert-equal '(0.0d0 -6.65625d0 72.0d0 5.0d0)
+    (assert-equal '(0.0d0 -6.140625d0 72.0d0 5.0d0)
                   (extents (layout-hcentre
                              (list (layout-line 0 5 72 5)
                                    (layout-text "weewaa" +red+)))))

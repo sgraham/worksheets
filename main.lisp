@@ -12,7 +12,14 @@
         :cl-colors
         :cl-who
         :sw
-        :iterate))
+        :iterate)
+
+  (:shadowing-import-from #:symbolicweb
+     #:replace
+     #:remove
+     #:insert
+     #:exchange
+     #:get-obj))
 
 (in-package :learnr)
 
@@ -443,6 +450,80 @@
            (hrows (concatenate 'list hrow-groups))))))
 
 
+
+;
+;
+; http ui stuff
+;
+;
+(setf symbolicweb::*server-close-connection-p* t)
+
+(defapp worksheets-app ()
+  ((container :initform (mk-container nil))
+   (adds :initform (mk-container nil))))
+
+(start-sw)
+(set-uri 'worksheets-app "/")
+
+(defmethod main ((app worksheets-app))
+  (with-slots (container adds) app
+    (maphash #'(lambda (path qd)
+                (let ((l (mk-link path :href "#")))
+                  (setf (on-click-of l)
+                        (mk-cb (l)
+                          (show-alert-box (format nil "clickity clack ~a" (qd-title qd)))))
+                  (add-to adds l)))
+             *question-db*)))
+
+(defmethod render ((app worksheets-app))
+  (with-output-to-string (ss)
+    (with-html-output (ss ss :prologue t)
+      (:html
+       (:head
+        (:meta :name "Author" :content "Scott Graham")
+        (:meta :http-equiv "X-UA-Compatible" :content "IE=edge") ;; For IE8 and up.
+        ;; TODO: Move this to a slot in APPLICATION.
+        (:link :rel "stylesheet" :type "text/css" :href "/static/styles.css"))
+       (:body
+         (:div :id "header"
+               (:h1 (:a :href "/" "Math Worksheets"))
+               (:h3 (:span "Quickly and easily make math worksheets!")))
+         (:div :id "content"
+               (:table :cellpadding 0 :border 0 :cellspacing 0)
+               )
+         (:div :id "menu"
+               (:h2 "Basic Number Operations")
+               (:ul
+                 (:li (:a :href "#" "Item 1"))
+                 (:li (:a :href "#" "Item 2"))
+                 (:li (:a :href "#" "Item 3"))
+                 (:li (:a :href "#" "Item 4"))))
+         (:div :id "footer"
+               (:p "&copy; 2009 Scott Graham")
+               (:a :href "http://learnr.uservoice.com/?referer_type=tab" "Feedback?"))
+               
+        (:a :accesskey 1 :href "javascript:swTerminateSession();")
+        (:a :accesskey 2 :href "javascript:swDisplaySessionInfo();")
+              
+        (:noscript "JavaScript must be enabled.")
+        (str (js-sw-headers app)))))))
+
+(defmethod render-viewport ((viewport viewport) (app worksheets-app))
+  (with-slots (container adds) app
+    (add-to (root)
+      (with-html-container ()
+        (:h1 "Math Worksheets")
+        (print adds)
+        (:sw adds)
+        (:sw container)))))
+
+
+
+;
+;
+; scratch
+;
+;
 
 ;(add-set *doc* (generate-set (gethash "Basic Number Operations/Addition" *question-db*) t))
 ;(layout-sets *doc*)

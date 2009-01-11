@@ -1,0 +1,4 @@
+#!/bin/sh
+mkdir -p cache
+sudo /etc/init.d/nginx start
+../clbuild/clbuild lisp
