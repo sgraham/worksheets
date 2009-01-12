@@ -346,6 +346,22 @@
 (add-question-description
   (make-question-description
     :group "Basic Number Operations" 
+    :title "Multiplication"
+    :properties (list (make-property-int :name "Integer 1" :min -20 :max 20)
+                      (make-property-int :name "Integer 2" :min -20 :max 20))
+    :default-instr "Solve by multiplying."
+    :default-count 12
+    :default-cols 3
+    :answer #'(lambda (a b) (* a b))
+    :display #'(lambda (a b answer)
+                 (layout-horiz
+                   (list 
+                     (layout-text (format nil "~a \mul ~a = " a b))
+                     answer)))))
+
+(add-question-description
+  (make-question-description
+    :group "Wee Waa" 
     :title "Division (Integral)"
     :properties (list (make-property-int :name "Dividend" :min 10 :max 100)
                       (make-property-int :name "Divisor" :min 1 :max 10))
@@ -472,17 +488,17 @@
 (defun mk-groupadd (title)
   (make-instance 'groupadd :title title))
 
-(defmethod generate-html :around ((groupadd groupadd))
-  (who (:h2 (str (title-of groupadd)))
-       (:ul (str (dolist (child (children-of groupadd))
-              (render child))))))
+(defmethod generate-html ((groupadd groupadd))
+  (who
+    (:h2 (str (title-of groupadd)))
+    (:ul (dolist (child (children-of groupadd))
+           (htm (:li (:sw child)))))))
 
 (defmethod main ((app worksheets-app))
   (with-slots (container adds) app
     (let ((grouphash (make-hash-table :test #'equal)))
       (maphash #'(lambda (path qd)
                    (declare (ignore path))
-                   (format t "wee ~a" (qd-group qd))
                    (let ((group (mk-groupadd (qd-group qd))))
                      (when (null (gethash (qd-group qd) grouphash))
                       (add-to adds group)
@@ -522,8 +538,16 @@
                (:h1 (:a :href "/" "Math Worksheets"))
                (:h3 (:span "Quickly and easily make math worksheets!")))
          (:div :id "content"
-               (:table :cellpadding 0 :border 0 :cellspacing 0)
-               )
+               (:table :cellpadding 0 :border 0 :cellspacing 0
+                 (:tr (:td (:img :src "/static/page_0_0.png" :style "width: 7px; height 7px; border-width 0px;"))
+                      (:td (:img :src "/static/page_0_1.png" :style "width: 612px; height 7px; border-width 0px;"))
+                      (:td (:img :src "/static/page_0_2.png" :style "width: 23px; height 7px; border-width 0px;")))
+                 (:tr (:td (:img :src "/static/page_1_0.png" :style "width: 7px; height: 792px; border-width: 0px;"))
+                      (:td (:img :src "/static/example.png" :style "width: 612px; height: 792px; border-width: 0px;"))
+                      (:td (:img :src "/static/page_1_2.png" :style "width: 23px; height: 792px; border-width: 0px;")))
+                 (:tr (:td (:img :src "/static/page_2_0.png" :style "width: 7px; height: 23px; border-width: 0px;"))
+                      (:td (:img :src "/static/page_2_1.png" :style "width: 612px; height: 23px; border-width: 0px;"))
+                      (:td (:img :src "/static/page_2_2.png" :style "width: 23px; height: 23px; border-width: 0px;")))))
          (:div :id "menu"
                (:sw adds))
          (:div :id "footer"

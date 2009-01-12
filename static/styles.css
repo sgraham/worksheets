@@ -55,7 +55,8 @@ div#header h3 {
 }
 
 div#menu {
-	padding: 10em 0 0 0;
+    width: 138px;
+    padding: 10em 0 0 0;
 }
 
 div#menu h2, div#content h2{
@@ -64,21 +65,22 @@ div#menu h2, div#content h2{
 	color: #333;
 	border-bottom: 1px dashed #333;
 	margin: 1em 0 1em 0;
+    line-height: 1.3em;
 }
 
 div#menu h2 {
-	width: 147px;
+	width: 138px;
+    padding: .5em 0 0 0;
 }	
 
 div#menu li {
-	list-style: none;
+	list-style: disc;
 	font-size: 1em;
 }
 
 div#menu li a {
 	color: #707070;
-	text-decoration: none;
-	padding: 0 1em;
+	padding: 0;
 }
 
 div#menu li a:hover {
@@ -87,16 +89,8 @@ div#menu li a:hover {
 
 div#content {
 	float: right;
-	width: 633px;
+	width: 642px;
 	padding-top: 6em;
-}
-
-div#content p {
-	padding: 0.8em 0 0.2em 0.8em;	
-}
-
-div#content a {
-    color: #22438f;
 }
 
 div#footer {
