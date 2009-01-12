@@ -1,2 +1,4 @@
 tags
 *.fasl
+cache/*
+example.png
