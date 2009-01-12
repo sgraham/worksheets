@@ -476,6 +476,16 @@
 
 (defapp worksheets-app ()
   ((container :initform (mk-container nil))
+   (toggle-answers-link :initform (progn (let ((l (mk-link (mk-span "Toggle Answers"))))
+                                           (setf (on-click-of l)
+                                                 (mk-cb (l)
+                                                        (show-alert-box "answers!")))
+                                           l)))
+   (print-link :initform (progn (let ((l (mk-link (mk-span "Print"))))
+                                           (setf (on-click-of l)
+                                                 (mk-cb (l)
+                                                        (show-alert-box "printy")))
+                                           l)))
    (adds :initform (mk-container nil))))
 
 (start-sw)
@@ -507,7 +517,7 @@
       (maphash #'(lambda (path qd)
                    (declare (ignore path))
                    (let ((group (gethash (qd-group qd) grouphash)))
-                     (let ((l (mk-link (qd-title qd) :href "#")))
+                     (let ((l (mk-link (mk-span (qd-title qd)))))
                        (setf (on-click-of l)
                              (mk-cb (l)
                                     (show-alert-box (format nil "clickity clack ~a ~a" (qd-title qd) l))))
@@ -523,7 +533,7 @@
         (:meta :http-equiv "X-UA-Compatible" :content "IE=edge") ;; For IE8 and up.
         (:link :rel "stylesheet" :type "text/css" :href "/static/styles.css"))
        (:body
-        (:div :id "sw-root" :style "overflow: auto;")
+        (:div :id "sw-root" :style "overflow: hidden;")
         (:a :accesskey 1 :href "javascript:swTerminateSession();")
         (:a :accesskey 2 :href "javascript:swDisplaySessionInfo();")
         ; todo; add something here so that search engine/text browse sees something
@@ -531,19 +541,22 @@
         (str (js-sw-headers app)))))))
 
 (defmethod render-viewport ((viewport viewport) (app worksheets-app))
-  (with-slots (container adds) app
+  (with-slots (container adds toggle-answers-link print-link) app
     (add-to (root)
       (with-html-container ()
          (:div :id "header"
                (:h1 (:a :href "/" "Math Worksheets"))
                (:h3 (:span "Quickly and easily make math worksheets!")))
+         (:div :id "topmenu"
+               (:sw toggle-answers-link)
+               (:sw print-link))
          (:div :id "content"
                (:table :cellpadding 0 :border 0 :cellspacing 0
                  (:tr (:td (:img :src "/static/page_0_0.png" :style "width: 7px; height 7px; border-width 0px;"))
                       (:td (:img :src "/static/page_0_1.png" :style "width: 612px; height 7px; border-width 0px;"))
                       (:td (:img :src "/static/page_0_2.png" :style "width: 23px; height 7px; border-width 0px;")))
                  (:tr (:td (:img :src "/static/page_1_0.png" :style "width: 7px; height: 792px; border-width: 0px;"))
-                      (:td (:img :src "/static/example.png" :style "width: 612px; height: 792px; border-width: 0px;"))
+                      (:td (:img :src "/static/page_1_1.png" :style "width: 612px; height: 792px; border-width: 0px;"))
                       (:td (:img :src "/static/page_1_2.png" :style "width: 23px; height: 792px; border-width: 0px;")))
                  (:tr (:td (:img :src "/static/page_2_0.png" :style "width: 7px; height: 23px; border-width: 0px;"))
                       (:td (:img :src "/static/page_2_1.png" :style "width: 612px; height: 23px; border-width: 0px;"))

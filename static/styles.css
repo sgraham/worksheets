@@ -87,10 +87,27 @@ div#menu li a:hover {
     color: #22438f;
 }
 
+div#topmenu {
+    float: right;
+    width: 642px;
+	padding-top: 6em;
+    padding-right: 1.7em;
+    text-align: right;
+}
+
+div#topmenu a {
+    padding-left: 1em;
+	color: #707070;
+}
+
+div#topmenu a:hover {
+    color: #22438f;
+}
+
 div#content {
 	float: right;
 	width: 642px;
-	padding-top: 6em;
+	padding-top: 1em;
 }
 
 div#footer {
